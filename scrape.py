@@ -4,19 +4,34 @@ from selenium import webdriver
 from selenium.common.exceptions import NoSuchElementException
 from tqdm import tqdm
 
-INPUT_FILEPATH = 'github_starrers.xlsx'
+INPUT_FILEPATH = 'github_starrers.csv'
 INPUT_TYPE = INPUT_FILEPATH.split('.')[-1]
 
-OUTPUT_FILEPATH = 'github_starrers.xlsx'
+OUTPUT_FILEPATH = 'github_starrers.csv'
 OUTPUT_TYPE = OUTPUT_FILEPATH.split('.')[-1]
 
-if __name__ == '__main__':
-    assert INPUT_TYPE in ['xlsx', 'csv']
-    assert OUTPUT_TYPE in ['xlsx', 'csv']
 
-    df = pd.read_excel(INPUT_FILEPATH) if INPUT_TYPE == 'xlsx' else pd.read_csv(INPUT_FILEPATH)
-    df['email'] = ''
+def get_last_filled_email_index(df):
+    completed_indices = list(df.index[df['email'].apply(lambda x: isinstance(x, str) and len(x) > 0)])
+    print(completed_indices)
+    if len(completed_indices) == 0:
+        return -1
+    else:
+        return max(completed_indices)
+
+
+if __name__ == '__main__':
+
+    df = pd.read_csv(INPUT_FILEPATH)
+    if 'email' not in df.columns:
+        df['email'] = ''
     scraped_emails = []
+
+    start_idx = get_last_filled_email_index(df) + 1
+    if start_idx >= 1:
+        print(f"Found previously completed entries, starting from index {start_idx}...")
+
+    scraped_emails = list(df['email'])[:start_idx]
 
     try:
         BASE_URL = 'https://www.github.com/{}'
@@ -25,7 +40,7 @@ if __name__ == '__main__':
         time.sleep(30) # login manually
         print("Beginning scrape!")
 
-        for name in tqdm(df['name']):
+        for name in tqdm(df['name'][start_idx:]):
             driver.get(BASE_URL.format(name))
             try:
                 content = driver.find_element_by_css_selector('a.u-email')
@@ -37,7 +52,4 @@ if __name__ == '__main__':
     finally:
         df['email'] = scraped_emails + [''] * (len(df) - len(scraped_emails))
 
-        if OUTPUT_TYPE == 'xlsx':
-            df.to_excel(OUTPUT_FILEPATH)
-        else:
-            df.to_csv(OUTPUT_FILEPATH)
+        df.to_csv(OUTPUT_FILEPATH, index=False)

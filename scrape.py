@@ -4,12 +4,12 @@ from selenium import webdriver
 from selenium.common.exceptions import NoSuchElementException
 from tqdm import tqdm
 
-INPUT_FILEPATH = 'github_starrers.csv'
-OUTPUT_FILEPATH = 'github_starrers.csv'
+INPUT_FILEPATH = 'ScrapeGitHubStars_PyTorch_1.csv'
+OUTPUT_FILEPATH = 'ScrapeGitHubStars_PyTorch_1.csv'
 
 def get_last_filled_email_index(df):
     completed_indices = list(df.index[df['email'].apply(lambda x: isinstance(x, str) and len(x) > 0)])
-    print(completed_indices)
+    # print(completed_indices)
     if len(completed_indices) == 0:
         return -1
     else:

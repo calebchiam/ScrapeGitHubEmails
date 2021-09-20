@@ -5,11 +5,7 @@ from selenium.common.exceptions import NoSuchElementException
 from tqdm import tqdm
 
 INPUT_FILEPATH = 'github_starrers.csv'
-INPUT_TYPE = INPUT_FILEPATH.split('.')[-1]
-
 OUTPUT_FILEPATH = 'github_starrers.csv'
-OUTPUT_TYPE = OUTPUT_FILEPATH.split('.')[-1]
-
 
 def get_last_filled_email_index(df):
     completed_indices = list(df.index[df['email'].apply(lambda x: isinstance(x, str) and len(x) > 0)])
@@ -51,5 +47,4 @@ if __name__ == '__main__':
 
     finally:
         df['email'] = scraped_emails + [''] * (len(df) - len(scraped_emails))
-
         df.to_csv(OUTPUT_FILEPATH, index=False)

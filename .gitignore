@@ -4,3 +4,4 @@
 .idea
 *.iml
 .ipynb_checkpoints
+config.py

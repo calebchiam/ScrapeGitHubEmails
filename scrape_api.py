@@ -4,14 +4,14 @@ from tqdm import tqdm
 import requests
 import json
 from collections import Counter
+from config import USERNAME, TOKEN
 
-INPUT_FILEPATH = 'ScrapeGitHubStars_PyTorch.csv'
-OUTPUT_FILEPATH = 'ScrapeGitHubStars_PyTorch.csv'
-USERNAME = 'calebchiam'
-# generate personal access token here: https://docs.github.com/en/github/authenticating-to-github/keeping-your-account-and-data-secure/creating-a-personal-access-token
-TOKEN = ''
+INPUT_FILEPATH = 'CleanlabStargazersNamesEmails.csv'
+OUTPUT_FILEPATH = 'CleanlabStargazersNamesEmails.csv'
+
 ACTIVITY_URL = 'https://api.github.com/users/{}/events/public'
 USER_URL = 'https://api.github.com/users/{}'
+SCRAPE_EMAIL = True
 
 def get_reset_time(res):
     return int(res.headers['X-RateLimit-Reset'])
@@ -52,41 +52,49 @@ def get_email_from_activity(username):
     all_addrs = []
     for entry in user_activity:
         all_addrs += get_email_from_entry(entry)
+    all_addrs = [x for x in all_addrs if '@users.noreply.git' not in x]
     most_common_emails = Counter(all_addrs).most_common()
     if len(most_common_emails) == 0:
         return ''
     else:
         return most_common_emails[0][0]
 
-def get_email_from_profile(username):
+def get_name_email_from_profile(username):
     res = requests.get(USER_URL.format(username), auth=(USERNAME, TOKEN))
     check_ratelimit(res)
     if res.status_code != 200:
         raise ValueError(f'Invalid status code of {res.status_code} for {username}, check internet connection or verify that you have not been rate-limited')
     user_profile = json.loads(res.content)
-    return user_profile.get('email', None)
+    return user_profile.get('name', None), user_profile.get('email', None)
 
 
 if __name__ == '__main__':
     df = pd.read_csv(INPUT_FILEPATH)
-    if 'email' not in df.columns:
-        df['email'] = ''
+    for new_col in ['email', 'name']:
+        if new_col not in df.columns:
+            df[new_col] = ''
     scraped_emails = []
+    scraped_names = []
 
     start_idx = get_last_filled_email_index(df) + 1
     if start_idx >= 1:
         print(f"Found previously completed entries, starting from index {start_idx}...")
 
     scraped_emails = list(df['email'])[:start_idx]
+    scraped_names = list(df['name'])[:start_idx]
 
     try:
         print("Beginning scrape!")
-        for name in tqdm(df['name'][start_idx:]):
-            email = get_email_from_profile(name)
+        for username in tqdm(df['username'][start_idx:]):
+            name, email = get_name_email_from_profile(username)
             if email is None:
-                email = get_email_from_activity(name)
+                email = get_email_from_activity(username)
+            if name is None:
+                name = ''
             scraped_emails.append(email)
+            scraped_names.append(name)
         print("Completed scrape!")
     finally:
         df['email'] = scraped_emails + [''] * (len(df) - len(scraped_emails))
+        df['name'] = scraped_names + [''] * (len(df) - len(scraped_names))
         df.to_csv(OUTPUT_FILEPATH, index=False)
